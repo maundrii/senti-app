@@ -3,233 +3,119 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SENTI — Media Sentiment & Topic Cluster Analyzer</title>
+<title>SENTI — News Sentiment & Topic Cluster Analyzer</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0a0a0f;
-    --surface: #12121a;
-    --surface2: #1a1a26;
-    --border: #2a2a40;
-    --accent: #7c3aed;
-    --accent2: #06b6d4;
-    --pos: #10b981;
-    --neg: #ef4444;
-    --neu: #f59e0b;
-    --text: #e2e8f0;
-    --muted: #64748b;
-    --glow: rgba(124,58,237,0.3);
+    --bg:#0a0a0f;--surface:#12121a;--surface2:#1a1a26;--border:#2a2a40;
+    --accent:#7c3aed;--accent2:#06b6d4;--pos:#10b981;--neg:#ef4444;--neu:#f59e0b;
+    --text:#e2e8f0;--muted:#64748b;--glow:rgba(124,58,237,0.3);
   }
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Syne', sans-serif;
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
-  body::before {
-    content:'';
-    position:fixed; inset:0;
-    background-image:
-      linear-gradient(rgba(124,58,237,0.04) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(124,58,237,0.04) 1px, transparent 1px);
-    background-size: 40px 40px;
-    pointer-events:none; z-index:0;
-  }
-  .app { position:relative; z-index:1; display:grid; grid-template-rows: auto 1fr; min-height:100vh; }
-  header {
-    padding: 24px 36px;
-    border-bottom: 1px solid var(--border);
-    display:flex; align-items:center; justify-content:space-between;
-    background: rgba(10,10,15,0.8);
-    backdrop-filter: blur(12px);
-    position:sticky; top:0; z-index:100;
-  }
-  .logo {
-    font-family:'Space Mono',monospace;
-    font-size:22px; font-weight:700; letter-spacing:4px;
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
-    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
-  }
-  .logo span { font-size:11px; display:block; letter-spacing:6px; color:var(--muted); -webkit-text-fill-color: var(--muted); margin-top:2px; }
-  .status-dot {
-    width:8px; height:8px; border-radius:50%;
-    background:var(--pos);
-    box-shadow: 0 0 8px var(--pos);
-    animation: pulse 2s infinite;
-  }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
-  main { display:grid; grid-template-columns: 340px 1fr; height: calc(100vh - 73px); }
-  aside {
-    border-right: 1px solid var(--border);
-    padding: 28px 24px;
-    overflow-y:auto;
-    display:flex; flex-direction:column; gap:24px;
-    background: var(--surface);
-  }
-  .section-label {
-    font-family:'Space Mono',monospace;
-    font-size:10px; letter-spacing:3px; color:var(--accent2);
-    text-transform:uppercase; margin-bottom:10px;
-  }
-  .keyword-area { display:flex; flex-direction:column; gap:8px; }
-  .keyword-input-row { display:flex; gap:8px; }
-  input[type=text] {
-    flex:1; background: var(--surface2); border: 1px solid var(--border);
-    color:var(--text); font-family:'Space Mono',monospace; font-size:13px;
-    padding:10px 14px; border-radius:6px; outline:none;
-    transition: border-color 0.2s, box-shadow 0.2s;
-  }
-  input[type=text]:focus { border-color:var(--accent); box-shadow: 0 0 0 3px var(--glow); }
-  input[type=text]::placeholder { color:var(--muted); }
-  .btn {
-    padding:10px 16px; border:none; border-radius:6px; cursor:pointer;
-    font-family:'Space Mono',monospace; font-size:12px; font-weight:700;
-    letter-spacing:1px; transition: all 0.2s;
-  }
-  .btn-primary { background: linear-gradient(135deg, var(--accent), #9333ea); color:#fff; box-shadow: 0 0 20px var(--glow); }
-  .btn-primary:hover { transform:translateY(-1px); box-shadow: 0 4px 30px var(--glow); }
-  .btn-secondary { background: var(--surface2); border:1px solid var(--border); color:var(--muted); }
-  .btn-secondary:hover { border-color:var(--accent); color:var(--text); }
-  .btn-analyze {
-    width:100%; padding:14px; font-size:13px; letter-spacing:2px;
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
-    color:#fff; border:none; border-radius:8px; cursor:pointer;
-    font-family:'Space Mono',monospace; font-weight:700;
-    box-shadow: 0 4px 30px rgba(124,58,237,0.4);
-    transition:all 0.2s;
-  }
-  .btn-analyze:hover { transform:translateY(-2px); box-shadow: 0 8px 40px rgba(124,58,237,0.6); }
-  .btn-analyze:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
-  .tags { display:flex; flex-wrap:wrap; gap:6px; min-height:30px; }
-  .tag {
-    display:flex; align-items:center; gap:6px;
-    background: rgba(124,58,237,0.15); border:1px solid rgba(124,58,237,0.4);
-    color:var(--accent2); font-family:'Space Mono',monospace; font-size:11px;
-    padding:4px 10px; border-radius:20px;
-  }
-  .tag-remove { cursor:pointer; color:var(--muted); font-size:14px; line-height:1; }
-  .tag-remove:hover { color:var(--neg); }
-  .presets { display:flex; flex-wrap:wrap; gap:6px; }
-  .preset-btn {
-    background:transparent; border:1px solid var(--border); color:var(--muted);
-    font-family:'Space Mono',monospace; font-size:10px; padding:5px 10px;
-    border-radius:4px; cursor:pointer; transition:all 0.2s;
-  }
-  .preset-btn:hover { border-color:var(--accent2); color:var(--accent2); }
-  .stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-  .stat-card { background: var(--surface2); border:1px solid var(--border); border-radius:8px; padding:12px 14px; }
-  .stat-num { font-family:'Space Mono',monospace; font-size:22px; font-weight:700; }
-  .stat-label { font-size:11px; color:var(--muted); margin-top:2px; }
-  .stat-pos .stat-num { color:var(--pos); }
-  .stat-neg .stat-num { color:var(--neg); }
-  .stat-neu .stat-num { color:var(--neu); }
-  .stat-total .stat-num { color:var(--accent2); }
-  .sent-bar { height:8px; border-radius:4px; overflow:hidden; display:flex; gap:2px; margin-top:4px; }
-  .sent-seg { height:100%; border-radius:2px; transition:width 0.6s ease; }
-  .legend { display:flex; flex-direction:column; gap:8px; }
-  .legend-item { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted); }
-  .legend-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
-  .canvas-area { display:flex; flex-direction:column; background: var(--bg); }
-  .canvas-toolbar {
-    padding:14px 24px;
-    border-bottom:1px solid var(--border);
-    display:flex; align-items:center; gap:12px;
-    background: rgba(18,18,26,0.6);
-  }
-  .toolbar-title { font-family:'Space Mono',monospace; font-size:12px; color:var(--muted); letter-spacing:1px; flex:1; }
-  .view-btn {
-    padding:6px 14px; border-radius:4px; cursor:pointer; font-size:11px;
-    font-family:'Space Mono',monospace; border:1px solid var(--border);
-    background:transparent; color:var(--muted); transition:all 0.2s;
-  }
-  .view-btn.active { background:var(--accent); border-color:var(--accent); color:#fff; }
-  #graph-container { flex:1; position:relative; overflow:hidden; }
-  #graph-svg { width:100%; height:100%; }
-  .tooltip {
-    position:absolute; pointer-events:none; opacity:0;
-    background: var(--surface2); border:1px solid var(--border);
-    border-radius:8px; padding:12px 16px; font-size:12px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
-    transition: opacity 0.2s; z-index:200; max-width:220px;
-    font-family:'Space Mono',monospace;
-  }
-  .tooltip .tt-title { font-size:14px; font-weight:700; color:var(--text); margin-bottom:6px; }
-  .tooltip .tt-row { display:flex; justify-content:space-between; gap:16px; margin-top:3px; }
-  .tooltip .tt-key { color:var(--muted); }
-  .empty-state {
-    position:absolute; inset:0; display:flex; flex-direction:column;
-    align-items:center; justify-content:center; gap:16px;
-    color:var(--muted); text-align:center;
-  }
-  .empty-icon { font-size:56px; opacity:0.3; }
-  .empty-text { font-size:14px; line-height:1.7; max-width:280px; }
-  .empty-hint { font-family:'Space Mono',monospace; font-size:11px; color:var(--accent); letter-spacing:1px; }
-  #feed-panel {
-    width:320px; border-left:1px solid var(--border);
-    background:var(--surface); overflow-y:auto;
-    display:none; flex-direction:column;
-  }
-  #feed-panel.visible { display:flex; }
-  .feed-header { padding:16px 18px; border-bottom:1px solid var(--border); font-size:12px; font-family:'Space Mono',monospace; color:var(--muted); }
-  .tweet-card { padding:14px 18px; border-bottom:1px solid rgba(255,255,255,0.04); transition:background 0.2s; }
-  .tweet-card:hover { background:rgba(255,255,255,0.03); }
-  .tweet-user { font-size:12px; font-weight:700; color:var(--accent2); margin-bottom:4px; }
-  .tweet-text { font-size:12px; line-height:1.6; color:var(--text); }
-  .tweet-meta { margin-top:6px; font-size:10px; color:var(--muted); font-family:'Space Mono',monospace; display:flex; gap:10px; flex-wrap:wrap; }
-  .sent-badge { font-size:9px; padding:2px 7px; border-radius:3px; font-weight:700; font-family:'Space Mono',monospace; }
-  .badge-pos { background:rgba(16,185,129,0.2); color:var(--pos); border:1px solid rgba(16,185,129,0.3); }
-  .badge-neg { background:rgba(239,68,68,0.2); color:var(--neg); border:1px solid rgba(239,68,68,0.3); }
-  .badge-neu { background:rgba(245,158,11,0.2); color:var(--neu); border:1px solid rgba(245,158,11,0.3); }
-  ::-webkit-scrollbar { width:4px; }
-  ::-webkit-scrollbar-track { background:transparent; }
-  ::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
-  .loading-overlay {
-    position:absolute; inset:0; background:rgba(10,10,15,0.85);
-    display:none; align-items:center; justify-content:center;
-    flex-direction:column; gap:16px; z-index:50;
-    backdrop-filter: blur(4px);
-  }
-  .loading-overlay.active { display:flex; }
-  .spinner { width:40px; height:40px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation: spin 0.8s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .loading-text { font-family:'Space Mono',monospace; font-size:12px; color:var(--muted); letter-spacing:2px; }
-  .error-banner {
-    background: rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3);
-    color: var(--neg); padding:10px 14px; border-radius:6px;
-    font-size:12px; font-family:'Space Mono',monospace; display:none;
-  }
-  .mode-badge {
-    font-family:'Space Mono',monospace; font-size:10px; padding:4px 10px;
-    border-radius:4px; border:1px solid var(--border); color:var(--muted);
-  }
-  .mode-badge.live { border-color:var(--pos); color:var(--pos); }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-height:100vh;overflow-x:hidden;}
+  body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(124,58,237,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(124,58,237,0.04) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0;}
+  .app{position:relative;z-index:1;display:grid;grid-template-rows:auto 1fr;min-height:100vh;}
+  header{padding:24px 36px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:rgba(10,10,15,0.8);backdrop-filter:blur(12px);position:sticky;top:0;z-index:100;}
+  .logo{font-family:'Space Mono',monospace;font-size:22px;font-weight:700;letter-spacing:4px;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+  .logo span{font-size:11px;display:block;letter-spacing:6px;color:var(--muted);-webkit-text-fill-color:var(--muted);margin-top:2px;}
+  .status-dot{width:8px;height:8px;border-radius:50%;background:var(--pos);box-shadow:0 0 8px var(--pos);animation:pulse 2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+  main{display:grid;grid-template-columns:340px 1fr;height:calc(100vh - 73px);}
+  aside{border-right:1px solid var(--border);padding:28px 24px;overflow-y:auto;display:flex;flex-direction:column;gap:24px;background:var(--surface);}
+  .section-label{font-family:'Space Mono',monospace;font-size:10px;letter-spacing:3px;color:var(--accent2);text-transform:uppercase;margin-bottom:10px;}
+  .keyword-input-row{display:flex;gap:8px;}
+  input[type=text]{flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'Space Mono',monospace;font-size:13px;padding:10px 14px;border-radius:6px;outline:none;transition:border-color 0.2s,box-shadow 0.2s;}
+  input[type=text]:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--glow);}
+  input[type=text]::placeholder{color:var(--muted);}
+  .btn{padding:10px 16px;border:none;border-radius:6px;cursor:pointer;font-family:'Space Mono',monospace;font-size:12px;font-weight:700;letter-spacing:1px;transition:all 0.2s;}
+  .btn-add{background:linear-gradient(135deg,var(--accent),#9333ea);color:#fff;box-shadow:0 0 20px var(--glow);}
+  .btn-analyze{width:100%;padding:14px;font-size:13px;letter-spacing:2px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:'Space Mono',monospace;font-weight:700;box-shadow:0 4px 30px rgba(124,58,237,0.4);transition:all 0.2s;}
+  .btn-analyze:hover{transform:translateY(-2px);box-shadow:0 8px 40px rgba(124,58,237,0.6);}
+  .btn-analyze:disabled{opacity:0.5;cursor:not-allowed;transform:none;}
+  .tags{display:flex;flex-wrap:wrap;gap:6px;min-height:28px;}
+  .tag{display:flex;align-items:center;gap:6px;background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.4);color:var(--accent2);font-family:'Space Mono',monospace;font-size:11px;padding:4px 10px;border-radius:20px;}
+  .tag-remove{cursor:pointer;color:var(--muted);font-size:14px;line-height:1;}
+  .tag-remove:hover{color:var(--neg);}
+  .presets{display:flex;flex-wrap:wrap;gap:6px;}
+  .preset-btn{background:transparent;border:1px solid var(--border);color:var(--muted);font-family:'Space Mono',monospace;font-size:10px;padding:5px 10px;border-radius:4px;cursor:pointer;transition:all 0.2s;}
+  .preset-btn:hover{border-color:var(--accent2);color:var(--accent2);}
+  .mode-row{display:flex;gap:8px;}
+  .mode-btn{flex:1;padding:9px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-family:'Space Mono',monospace;font-size:10px;border-radius:6px;cursor:pointer;transition:all 0.2s;}
+  .mode-btn.active-sim{border-color:var(--accent);color:var(--accent2);}
+  .mode-btn.active-live{border-color:var(--pos);color:var(--pos);}
+  .info-box{background:rgba(6,182,212,0.07);border:1px solid rgba(6,182,212,0.2);border-radius:6px;padding:10px 12px;font-size:11px;color:var(--muted);line-height:1.7;}
+  .info-box strong{color:var(--accent2);}
+  .stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .stat-card{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;}
+  .stat-num{font-family:'Space Mono',monospace;font-size:22px;font-weight:700;}
+  .stat-label{font-size:11px;color:var(--muted);margin-top:2px;}
+  .c-pos{color:var(--pos);} .c-neg{color:var(--neg);} .c-neu{color:var(--neu);} .c-acc{color:var(--accent2);}
+  .sent-bar{height:8px;border-radius:4px;overflow:hidden;display:flex;gap:2px;margin-top:4px;}
+  .sent-seg{height:100%;border-radius:2px;transition:width 0.6s ease;}
+  .legend{display:flex;flex-direction:column;gap:8px;}
+  .legend-item{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);}
+  .legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+  .canvas-area{display:flex;flex-direction:column;background:var(--bg);}
+  .canvas-toolbar{padding:14px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;background:rgba(18,18,26,0.6);}
+  .toolbar-title{font-family:'Space Mono',monospace;font-size:12px;color:var(--muted);letter-spacing:1px;flex:1;}
+  .view-btn{padding:6px 14px;border-radius:4px;cursor:pointer;font-size:11px;font-family:'Space Mono',monospace;border:1px solid var(--border);background:transparent;color:var(--muted);transition:all 0.2s;}
+  .view-btn.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+  #graph-container{flex:1;position:relative;overflow:hidden;}
+  #graph-svg{width:100%;height:100%;}
+  .tooltip{position:absolute;pointer-events:none;opacity:0;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 16px;font-size:12px;box-shadow:0 8px 32px rgba(0,0,0,0.6);transition:opacity 0.2s;z-index:200;max-width:240px;font-family:'Space Mono',monospace;}
+  .tt-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px;}
+  .tt-row{display:flex;justify-content:space-between;gap:16px;margin-top:3px;}
+  .tt-key{color:var(--muted);}
+  .empty-state{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;color:var(--muted);text-align:center;}
+  .empty-icon{font-size:56px;opacity:0.3;}
+  .empty-text{font-size:14px;line-height:1.7;max-width:280px;}
+  .empty-hint{font-family:'Space Mono',monospace;font-size:11px;color:var(--accent);letter-spacing:1px;}
+  #feed-panel{width:340px;border-left:1px solid var(--border);background:var(--surface);overflow-y:auto;display:none;flex-direction:column;}
+  #feed-panel.visible{display:flex;}
+  .feed-header{padding:16px 18px;border-bottom:1px solid var(--border);font-size:12px;font-family:'Space Mono',monospace;color:var(--muted);}
+  .article-card{padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.04);transition:background 0.2s;}
+  .article-card:hover{background:rgba(255,255,255,0.03);}
+  .article-source{font-size:11px;font-weight:700;color:var(--accent2);margin-bottom:4px;font-family:'Space Mono',monospace;}
+  .article-title{font-size:12px;line-height:1.6;color:var(--text);font-weight:600;}
+  .article-desc{font-size:11px;line-height:1.5;color:var(--muted);margin-top:4px;}
+  .article-meta{margin-top:6px;font-size:10px;color:var(--muted);font-family:'Space Mono',monospace;display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+  .article-link{color:var(--accent2);text-decoration:none;font-size:10px;}
+  .article-link:hover{text-decoration:underline;}
+  .sent-badge{font-size:9px;padding:2px 7px;border-radius:3px;font-weight:700;font-family:'Space Mono',monospace;}
+  .badge-pos{background:rgba(16,185,129,0.2);color:var(--pos);border:1px solid rgba(16,185,129,0.3);}
+  .badge-neg{background:rgba(239,68,68,0.2);color:var(--neg);border:1px solid rgba(239,68,68,0.3);}
+  .badge-neu{background:rgba(245,158,11,0.2);color:var(--neu);border:1px solid rgba(245,158,11,0.3);}
+  ::-webkit-scrollbar{width:4px;} ::-webkit-scrollbar-track{background:transparent;} ::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+  .loading-overlay{position:absolute;inset:0;background:rgba(10,10,15,0.85);display:none;align-items:center;justify-content:center;flex-direction:column;gap:16px;z-index:50;backdrop-filter:blur(4px);}
+  .loading-overlay.active{display:flex;}
+  .spinner{width:40px;height:40px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .loading-text{font-family:'Space Mono',monospace;font-size:12px;color:var(--muted);letter-spacing:2px;}
+  .error-banner{background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:var(--neg);padding:10px 14px;border-radius:6px;font-size:12px;font-family:'Space Mono',monospace;display:none;line-height:1.6;}
+  .mode-badge{font-family:'Space Mono',monospace;font-size:10px;padding:4px 10px;border-radius:4px;border:1px solid var(--border);color:var(--muted);}
+  .mode-badge.live{border-color:var(--pos);color:var(--pos);}
 </style>
 </head>
 <body>
 <div class="app">
-
 <header>
-  <div class="logo">SENTI<span>MEDIA ANALYSIS ENGINE</span></div>
+  <div class="logo">SENTI<span>NEWS SENTIMENT & CLUSTER ANALYZER</span></div>
   <div style="display:flex;align-items:center;gap:10px">
     <span class="mode-badge" id="mode-badge">SIMULATION</span>
     <div class="status-dot"></div>
   </div>
 </header>
-
 <main>
   <aside>
-    <!-- ANALYZE BUTTON at top for easy access -->
     <button class="btn-analyze" id="analyze-btn" onclick="runAnalysis()">▶ ANALYZE</button>
 
     <div>
       <div class="section-label">01 / Keywords</div>
-      <div class="keyword-area">
+      <div style="display:flex;flex-direction:column;gap:8px;">
         <div class="keyword-input-row">
-          <input type="text" id="kw-input" placeholder="e.g. AI, election..." />
-          <button class="btn btn-primary" onclick="addKeyword()">+</button>
+          <input type="text" id="kw-input" placeholder="e.g. AI, climate, Bitcoin..."/>
+          <button class="btn btn-add" onclick="addKeyword()">+</button>
         </div>
         <div class="tags" id="tags-container"></div>
         <div class="error-banner" id="error-banner"></div>
@@ -248,13 +134,13 @@
     </div>
 
     <div>
-      <div class="section-label">03 / Mode</div>
-      <div style="display:flex;gap:8px;">
-        <button class="btn btn-secondary" id="btn-sim" onclick="setMode('sim')" style="flex:1;font-size:10px">🧪 Simulate</button>
-        <button class="btn btn-secondary" id="btn-live" onclick="setMode('live')" style="flex:1;font-size:10px">🐦 Live API</button>
+      <div class="section-label">03 / Data Source</div>
+      <div class="mode-row">
+        <button class="mode-btn" id="btn-sim" onclick="setMode('sim')">🧪 Simulate</button>
+        <button class="mode-btn" id="btn-live" onclick="setMode('live')">📰 Live News</button>
       </div>
-      <div style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.6" id="mode-hint">
-        Simulation mode uses generated data. Switch to Live API once deployed on Vercel with your Twitter Bearer Token.
+      <div style="margin-top:10px">
+        <div class="info-box" id="mode-hint">Simulation uses generated data. Switch to <strong>Live News</strong> after deploying to Vercel with <strong>NEWS_API_KEY</strong> set.</div>
       </div>
     </div>
 
@@ -262,14 +148,12 @@
       <div class="section-label">04 / Parameters</div>
       <div style="display:flex;flex-direction:column;gap:12px;">
         <div>
-          <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Simulated Tweets: <span id="tweet-count-label" style="color:var(--accent2)">80</span></div>
-          <input type="range" id="tweet-count" min="30" max="200" value="80" style="width:100%;accent-color:var(--accent)"
-            oninput="document.getElementById('tweet-count-label').textContent=this.value">
+          <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Simulated Articles: <span id="count-label" style="color:var(--accent2)">80</span></div>
+          <input type="range" id="art-count" min="30" max="200" value="80" style="width:100%;accent-color:var(--accent)" oninput="document.getElementById('count-label').textContent=this.value">
         </div>
         <div>
           <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Cluster Spread: <span id="spread-label" style="color:var(--accent2)">Medium</span></div>
-          <input type="range" id="spread" min="1" max="3" value="2" style="width:100%;accent-color:var(--accent)"
-            oninput="document.getElementById('spread-label').textContent=['Tight','Medium','Wide'][this.value-1]">
+          <input type="range" id="spread" min="1" max="3" value="2" style="width:100%;accent-color:var(--accent)" oninput="document.getElementById('spread-label').textContent=['Tight','Medium','Wide'][this.value-1]">
         </div>
       </div>
     </div>
@@ -277,10 +161,10 @@
     <div id="stats-section" style="display:none">
       <div class="section-label">05 / Results</div>
       <div class="stats-grid">
-        <div class="stat-card stat-total"><div class="stat-num" id="s-total">0</div><div class="stat-label">Total Posts</div></div>
-        <div class="stat-card stat-neu"><div class="stat-num" id="s-clusters">0</div><div class="stat-label">Clusters</div></div>
-        <div class="stat-card stat-pos"><div class="stat-num" id="s-pos">0%</div><div class="stat-label">Positive</div></div>
-        <div class="stat-card stat-neg"><div class="stat-num" id="s-neg">0%</div><div class="stat-label">Negative</div></div>
+        <div class="stat-card"><div class="stat-num c-acc" id="s-total">0</div><div class="stat-label">Articles</div></div>
+        <div class="stat-card"><div class="stat-num c-neu" id="s-clusters">0</div><div class="stat-label">Clusters</div></div>
+        <div class="stat-card"><div class="stat-num c-pos" id="s-pos">0%</div><div class="stat-label">Positive</div></div>
+        <div class="stat-card"><div class="stat-num c-neg" id="s-neg">0%</div><div class="stat-label">Negative</div></div>
       </div>
       <div style="margin-top:12px">
         <div class="section-label" style="margin-bottom:6px">Sentiment Split</div>
@@ -298,7 +182,8 @@
         <div class="legend-item"><div class="legend-dot" style="background:var(--pos)"></div>Positive sentiment</div>
         <div class="legend-item"><div class="legend-dot" style="background:var(--neg)"></div>Negative sentiment</div>
         <div class="legend-item"><div class="legend-dot" style="background:var(--neu)"></div>Neutral sentiment</div>
-        <div class="legend-item"><div class="legend-dot" style="background:var(--accent2);box-shadow:0 0 6px var(--accent2)"></div>Cluster hub (keyword)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--accent2);box-shadow:0 0 6px var(--accent2)"></div>Keyword hub — click to filter</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--muted)"></div>Article node — click to open</div>
       </div>
     </div>
   </aside>
@@ -309,24 +194,24 @@
         <span class="toolbar-title" id="graph-title">AWAITING INPUT</span>
         <button class="view-btn active" id="btn-cluster" onclick="setView('cluster')">Cluster</button>
         <button class="view-btn" id="btn-force" onclick="setView('force')">Force</button>
-        <button class="view-btn" id="btn-feed" onclick="toggleFeed()">Feed ▸</button>
+        <button class="view-btn" id="btn-feed" onclick="toggleFeed()">Articles ▸</button>
       </div>
       <div id="graph-container">
         <svg id="graph-svg"></svg>
         <div class="empty-state" id="empty-state">
           <div class="empty-icon">◈</div>
-          <div class="empty-text">Add keywords and click <strong>▶ ANALYZE</strong> to generate a topic cluster network.</div>
-          <div class="empty-hint">↑ BUTTON IS AT THE TOP OF THE SIDEBAR</div>
+          <div class="empty-text">Add keywords and click <strong>▶ ANALYZE</strong> to visualize topic clusters from news articles.</div>
+          <div class="empty-hint">↑ ANALYZE BUTTON IS AT THE TOP OF THE SIDEBAR</div>
         </div>
         <div class="loading-overlay" id="loading">
           <div class="spinner"></div>
-          <div class="loading-text" id="loading-text">FETCHING DATA...</div>
+          <div class="loading-text" id="loading-text">FETCHING NEWS...</div>
         </div>
         <div class="tooltip" id="tooltip"></div>
       </div>
     </div>
     <div id="feed-panel">
-      <div class="feed-header" id="feed-header">LIVE FEED — ALL TOPICS</div>
+      <div class="feed-header" id="feed-header">📰 ARTICLES — ALL TOPICS</div>
       <div id="feed-content"></div>
     </div>
   </div>
@@ -334,352 +219,157 @@
 </div>
 
 <script>
-// ─── STATE ───────────────────────────────────────────────────────────────────
-let keywords = [];
-let currentView = 'cluster';
-let currentMode = 'sim'; // 'sim' or 'live'
-let simulation = null;
-let analysisData = null;
-let feedVisible = false;
+let keywords=[], currentMode='sim', simulation=null, analysisData=null, feedVisible=false;
 
-const PRESETS = {
-  tech: ['AI','ChatGPT','automation','robots','future'],
-  politics: ['election','democracy','vote','government','policy'],
-  climate: ['climate','CO2','renewable','solar','flooding'],
-  crypto: ['Bitcoin','crypto','blockchain','NFT','DeFi'],
-  sports: ['football','Messi','Champions League','goal','transfer'],
-};
+const PRESETS={tech:['AI','ChatGPT','automation','robots'],politics:['election','democracy','vote','government'],climate:['climate','renewable','solar','flooding'],crypto:['Bitcoin','crypto','blockchain','DeFi'],sports:['football','Messi','Champions League','transfer']};
+const POS_WORDS=['win','success','growth','record','best','breakthrough','rise','gain','boost','improve','achieve','launch','positive','strong','lead','innovation','progress','expand','rally','profit','soar','hope','peace','celebrate','award','recover','advance'];
+const NEG_WORDS=['crash','fail','crisis','warn','risk','fall','drop','loss','conflict','ban','attack','fear','death','threat','collapse','recession','scandal','fraud','protest','cut','decline','concern','danger','controversy','violence','disaster','accused'];
+const SIM_SOURCES=['Reuters','BBC News','Bloomberg','The Guardian','TechCrunch','CNN','Al Jazeera','Forbes','Wired','AP News'];
+const SIM_TITLES={positive:['{kw} Shows Strong Growth in Latest Report','Breakthrough in {kw}: Experts Optimistic','{kw} Achieves Record Milestone','Global Leaders Celebrate Progress on {kw}','Investors Rally Around {kw} Innovation'],negative:['{kw} Faces Major Crisis, Experts Warn','Controversy Surrounds {kw} Amid Backlash','Risk and Uncertainty Cloud the Future of {kw}','{kw} Scandal: What We Know So Far','Collapse Fears Rise as {kw} Situation Worsens'],neutral:['A Deep Dive Into {kw}: What You Need to Know','{kw}: Latest Updates and Analysis','How {kw} Is Changing the Landscape','Experts Weigh In on the State of {kw}','{kw} Report: Key Findings This Week']};
 
-const TWEET_TEMPLATES = {
-  positive: [
-    "Really excited about {kw}! This is genuinely going to change everything 🚀",
-    "Just read about {kw} and I'm honestly impressed. The future looks bright!",
-    "{kw} is proving everyone wrong. Love to see it. 💪",
-    "Incredible progress on {kw}. Can't wait to see what comes next!",
-    "Supporting {kw} all the way. This is the right direction.",
-    "Hot take: {kw} is actually the best thing to happen this year 🔥",
-  ],
-  negative: [
-    "Can we talk about how {kw} is seriously getting out of hand? 😤",
-    "Tired of hearing about {kw}. The hype is completely overblown.",
-    "{kw} is a disaster waiting to happen. Nobody is talking about this.",
-    "The more I learn about {kw}, the more concerned I get.",
-    "Unpopular opinion: {kw} is doing more harm than good.",
-    "Another day, another controversy around {kw}. When does it end?",
-  ],
-  neutral: [
-    "Thread on {kw}: what you need to know 🧵",
-    "New data on {kw} just dropped. Here's a breakdown 👇",
-    "Watching the {kw} situation closely. Things are developing fast.",
-    "Quick thoughts on {kw} after reading the latest reports.",
-    "{kw} update: here's where things stand as of today.",
-    "Sharing this article on {kw} — worth a read for context.",
-  ],
-};
+function analyzeSentiment(text){if(!text)return'neutral';const t=text.toLowerCase();let s=0;POS_WORDS.forEach(w=>{if(t.includes(w))s++;});NEG_WORDS.forEach(w=>{if(t.includes(w))s--;});return s>0?'positive':s<0?'negative':'neutral';}
 
-const USERS = ['@techwatch99','@policynerve','@dailydose_x','@realtalks_id','@futurenow_','@globalvoice7','@insidescoop','@trendwatcher','@opinionhive','@newsflash_x','@analyticsmind','@datadriven_','@critiqued_','@hotpages_id','@currents_xyz','@voxpop_global','@deepcut_media','@factfeed_','@thenewsnow','@buzzpulse_'];
-
-// ─── MODE TOGGLE ──────────────────────────────────────────────────────────────
-function setMode(mode) {
-  currentMode = mode;
-  document.getElementById('btn-sim').style.borderColor = mode==='sim' ? 'var(--accent)' : 'var(--border)';
-  document.getElementById('btn-sim').style.color = mode==='sim' ? 'var(--accent2)' : 'var(--muted)';
-  document.getElementById('btn-live').style.borderColor = mode==='live' ? 'var(--pos)' : 'var(--border)';
-  document.getElementById('btn-live').style.color = mode==='live' ? 'var(--pos)' : 'var(--muted)';
-  const badge = document.getElementById('mode-badge');
-  badge.textContent = mode === 'live' ? 'LIVE API' : 'SIMULATION';
-  badge.className = 'mode-badge' + (mode==='live' ? ' live' : '');
-  document.getElementById('mode-hint').textContent = mode === 'live'
-    ? 'Live mode calls /api/tweets on your Vercel deployment. Make sure TWITTER_BEARER_TOKEN is set in Vercel environment variables.'
-    : 'Simulation mode uses generated data. Switch to Live API once deployed on Vercel with your Twitter Bearer Token.';
+function setMode(mode){
+  currentMode=mode;
+  document.getElementById('btn-sim').className='mode-btn'+(mode==='sim'?' active-sim':'');
+  document.getElementById('btn-live').className='mode-btn'+(mode==='live'?' active-live':'');
+  const badge=document.getElementById('mode-badge');
+  badge.textContent=mode==='live'?'LIVE NEWS':'SIMULATION';
+  badge.className='mode-badge'+(mode==='live'?' live':'');
+  document.getElementById('mode-hint').innerHTML=mode==='live'
+    ?'Fetches real headlines from <strong>NewsAPI</strong>. Make sure <strong>NEWS_API_KEY</strong> is set in Vercel → Settings → Environment Variables.'
+    :'Simulation uses generated data. Switch to <strong>Live News</strong> after deploying to Vercel with your NewsAPI key.';
 }
 
-// ─── KEYWORDS ─────────────────────────────────────────────────────────────────
-function addKeyword() {
-  const input = document.getElementById('kw-input');
-  const val = input.value.trim();
-  if (!val || keywords.includes(val) || keywords.length >= 8) return;
-  keywords.push(val);
-  input.value = '';
-  renderTags();
-}
-document.getElementById('kw-input').addEventListener('keydown', e => { if(e.key==='Enter') addKeyword(); });
+function addKeyword(){const i=document.getElementById('kw-input'),v=i.value.trim();if(!v||keywords.includes(v)||keywords.length>=8)return;keywords.push(v);i.value='';renderTags();}
+document.getElementById('kw-input').addEventListener('keydown',e=>{if(e.key==='Enter')addKeyword();});
+function removeKeyword(kw){keywords=keywords.filter(k=>k!==kw);renderTags();}
+function renderTags(){document.getElementById('tags-container').innerHTML=keywords.map(kw=>`<div class="tag">${kw}<span class="tag-remove" onclick="removeKeyword('${kw}')">✕</span></div>`).join('');}
+function loadPreset(n){keywords=[...PRESETS[n]];renderTags();}
 
-function removeKeyword(kw) {
-  keywords = keywords.filter(k => k !== kw);
-  renderTags();
-}
-function renderTags() {
-  document.getElementById('tags-container').innerHTML = keywords.map(kw => `
-    <div class="tag">${kw}<span class="tag-remove" onclick="removeKeyword('${kw}')">✕</span></div>`).join('');
-}
-function loadPreset(name) {
-  keywords = [...PRESETS[name]];
-  renderTags();
+function generateSimulatedArticles(){
+  const n=parseInt(document.getElementById('art-count').value),articles=[];
+  keywords.forEach(kw=>{
+    const count=Math.floor(n/keywords.length)+Math.floor(Math.random()*8);
+    for(let i=0;i<count;i++){
+      const r=Math.random(),sent=r<0.38?'positive':r<0.68?'negative':'neutral';
+      const title=SIM_TITLES[sent][Math.floor(Math.random()*5)].replace(/{kw}/g,kw);
+      articles.push({title,description:`Analysis of ${kw} in the context of recent developments. Experts share perspectives on the evolving situation.`,source:SIM_SOURCES[Math.floor(Math.random()*SIM_SOURCES.length)],url:'#',publishedAt:new Date(Date.now()-Math.random()*7*864e5).toISOString(),sentiment:sent,keyword:kw});
+    }
+  });
+  return articles;
 }
 
-// ─── SENTIMENT ANALYSIS (simple keyword-based) ────────────────────────────────
-function analyzeSentiment(text) {
-  const t = text.toLowerCase();
-  const pos = ['great','amazing','love','excited','incredible','good','positive','excellent','best','happy','impressive','bright','support','progress','fantastic','wonderful'];
-  const neg = ['bad','terrible','horrible','hate','disaster','wrong','concern','fail','crisis','corrupt','problem','harmful','dangerous','out of hand','overblown','controversy'];
-  let score = 0;
-  pos.forEach(w => { if(t.includes(w)) score++; });
-  neg.forEach(w => { if(t.includes(w)) score--; });
-  return score > 0 ? 'positive' : score < 0 ? 'negative' : 'neutral';
+async function fetchRealNews(keyword){
+  const res=await fetch(`/api/news?keyword=${encodeURIComponent(keyword)}`);
+  if(!res.ok){const e=await res.json();throw new Error(e.error?.message||`API error ${res.status}`);}
+  const data=await res.json();
+  return(data.articles||[]).map(a=>({title:a.title||'',description:a.description||'',source:a.source||'Unknown',url:a.url||'#',publishedAt:a.publishedAt,sentiment:analyzeSentiment((a.title||'')+' '+(a.description||'')),keyword}));
 }
 
-// ─── FETCH REAL TWEETS ────────────────────────────────────────────────────────
-async function fetchRealTweets(keyword) {
-  const res = await fetch(`/api/tweets?keyword=${encodeURIComponent(keyword)}`);
-  if (!res.ok) throw new Error(`API error: ${res.status}`);
-  const data = await res.json();
-  return (data.data || []).map(tweet => ({
-    user: '@user_' + tweet.author_id.slice(-6),
-    text: tweet.text,
-    sentiment: analyzeSentiment(tweet.text),
-    keyword,
-    likes: Math.floor(Math.random()*200),
-    retweets: Math.floor(Math.random()*100),
-  }));
-}
-
-// ─── ANALYSIS ─────────────────────────────────────────────────────────────────
-async function runAnalysis() {
-  if (keywords.length === 0) { alert('Please add at least one keyword!'); return; }
+async function runAnalysis(){
+  if(keywords.length===0){alert('Please add at least one keyword!');return;}
   document.getElementById('loading').classList.add('active');
-  document.getElementById('empty-state').style.display = 'none';
-  document.getElementById('analyze-btn').disabled = true;
-  document.getElementById('error-banner').style.display = 'none';
-
-  const steps = ['FETCHING DATA...', 'ANALYZING SENTIMENT...', 'BUILDING CLUSTERS...', 'RENDERING GRAPH...'];
-  let i = 0;
-  const stepInterval = setInterval(() => {
-    document.getElementById('loading-text').textContent = steps[Math.min(i++, steps.length-1)];
-  }, 500);
-
-  try {
-    let tweets = [];
-
-    if (currentMode === 'live') {
-      // Fetch real tweets for each keyword
-      for (const kw of keywords) {
-        try {
-          const kwTweets = await fetchRealTweets(kw);
-          tweets = tweets.concat(kwTweets);
-        } catch(e) {
-          showError(`Failed to fetch tweets for "${kw}". Make sure TWITTER_BEARER_TOKEN is set in Vercel.`);
-        }
-      }
-      if (tweets.length === 0) {
-        throw new Error('No tweets fetched. Check your API token in Vercel environment variables.');
-      }
-    } else {
-      // Simulate
-      await new Promise(r => setTimeout(r, 1600));
-      tweets = generateSimulatedTweets();
-    }
-
-    analysisData = buildGraphData(tweets);
-    renderGraph(analysisData);
-    renderFeed(analysisData.tweets);
-    updateStats(analysisData);
-    document.getElementById('stats-section').style.display = 'block';
-    document.getElementById('legend-section').style.display = 'block';
-    document.getElementById('graph-title').textContent = `TOPIC CLUSTER — ${keywords.join(' · ').toUpperCase()}`;
-
-  } catch(err) {
-    showError(err.message);
-    document.getElementById('empty-state').style.display = 'flex';
-  }
-
-  clearInterval(stepInterval);
+  document.getElementById('empty-state').style.display='none';
+  document.getElementById('analyze-btn').disabled=true;
+  document.getElementById('error-banner').style.display='none';
+  const steps=['FETCHING NEWS...','ANALYZING SENTIMENT...','BUILDING CLUSTERS...','RENDERING GRAPH...'];
+  let si=0;const stepInt=setInterval(()=>{document.getElementById('loading-text').textContent=steps[Math.min(si++,3)];},500);
+  try{
+    let articles=[];
+    if(currentMode==='live'){
+      for(const kw of keywords){try{articles=articles.concat(await fetchRealNews(kw));}catch(e){showError(`"${kw}": ${e.message}`);}}
+      if(articles.length===0)throw new Error('No articles fetched. Check NEWS_API_KEY in Vercel → Settings → Environment Variables, then Redeploy.');
+    }else{await new Promise(r=>setTimeout(r,1600));articles=generateSimulatedArticles();}
+    analysisData=buildGraphData(articles);
+    renderGraph(analysisData);renderFeed(analysisData.articles);updateStats(analysisData);
+    document.getElementById('stats-section').style.display='block';
+    document.getElementById('legend-section').style.display='block';
+    document.getElementById('graph-title').textContent=`TOPIC CLUSTER — ${keywords.join(' · ').toUpperCase()}`;
+  }catch(err){showError(err.message);document.getElementById('empty-state').style.display='flex';}
+  clearInterval(stepInt);
   document.getElementById('loading').classList.remove('active');
-  document.getElementById('analyze-btn').disabled = false;
+  document.getElementById('analyze-btn').disabled=false;
 }
 
-function showError(msg) {
-  const el = document.getElementById('error-banner');
-  el.textContent = '⚠ ' + msg;
-  el.style.display = 'block';
-}
+function showError(msg){const el=document.getElementById('error-banner');el.textContent='⚠ '+msg;el.style.display='block';}
 
-// ─── SIMULATE TWEETS ──────────────────────────────────────────────────────────
-function generateSimulatedTweets() {
-  const n = parseInt(document.getElementById('tweet-count').value);
-  const tweets = [];
-  keywords.forEach(kw => {
-    const kwCount = Math.floor(n / keywords.length) + Math.floor(Math.random()*10);
-    for (let i = 0; i < kwCount; i++) {
-      const weights = [0.4, 0.3, 0.3];
-      const r = Math.random();
-      const sent = r < weights[0] ? 'positive' : r < weights[0]+weights[1] ? 'negative' : 'neutral';
-      const templates = TWEET_TEMPLATES[sent];
-      const text = templates[Math.floor(Math.random()*templates.length)].replace(/{kw}/g, kw);
-      tweets.push({ user: USERS[Math.floor(Math.random()*USERS.length)], text, sentiment: sent, keyword: kw, likes: Math.floor(Math.random()*500), retweets: Math.floor(Math.random()*200) });
-    }
+function buildGraphData(articles){
+  const sc={positive:0,negative:0,neutral:0};
+  articles.forEach(a=>sc[a.sentiment]++);
+  const nodes=[],links=[];
+  keywords.forEach(kw=>nodes.push({id:kw,type:'hub',keyword:kw,size:22+Math.random()*10,color:'#06b6d4'}));
+  articles.slice(0,80).forEach((a,i)=>{
+    const id=`art_${i}`,col=a.sentiment==='positive'?'#10b981':a.sentiment==='negative'?'#ef4444':'#f59e0b';
+    nodes.push({id,type:'article',title:a.title,source:a.source,sentiment:a.sentiment,keyword:a.keyword,url:a.url,size:6+Math.random()*6,color:col});
+    links.push({source:a.keyword,target:id,strength:0.3+Math.random()*0.4});
+    if(Math.random()<0.12&&keywords.length>1){const o=keywords.filter(k=>k!==a.keyword)[Math.floor(Math.random()*(keywords.length-1))];links.push({source:a.keyword,target:o,strength:0.1+Math.random()*0.15,cross:true});}
   });
-  return tweets;
+  return{nodes,links,articles,sentimentCounts:sc,total:articles.length};
 }
 
-// ─── BUILD GRAPH DATA ─────────────────────────────────────────────────────────
-function buildGraphData(tweets) {
-  const sentimentCounts = {positive:0,negative:0,neutral:0};
-  tweets.forEach(t => sentimentCounts[t.sentiment]++);
-
-  const nodes = [];
-  const links = [];
-
-  keywords.forEach(kw => {
-    nodes.push({ id: kw, type: 'hub', keyword: kw, size: 22 + Math.random()*10, color: '#06b6d4' });
-  });
-
-  tweets.slice(0, 60).forEach((t, i) => {
-    const nodeId = `${t.user}_${i}`;
-    const col = t.sentiment === 'positive' ? '#10b981' : t.sentiment === 'negative' ? '#ef4444' : '#f59e0b';
-    nodes.push({ id: nodeId, type: 'tweet', user: t.user, text: t.text, sentiment: t.sentiment, keyword: t.keyword, size: 6 + Math.random()*6, color: col });
-    links.push({ source: t.keyword, target: nodeId, strength: 0.3 + Math.random()*0.4 });
-    if (Math.random() < 0.15 && keywords.length > 1) {
-      const otherKw = keywords.filter(k => k !== t.keyword)[Math.floor(Math.random()*(keywords.length-1))];
-      links.push({ source: t.keyword, target: otherKw, strength: 0.15 + Math.random()*0.2, cross: true });
-    }
-  });
-
-  return { nodes, links, tweets, sentimentCounts, total: tweets.length };
-}
-
-// ─── GRAPH ────────────────────────────────────────────────────────────────────
-function renderGraph(data) {
-  const container = document.getElementById('graph-container');
-  const W = container.offsetWidth, H = container.offsetHeight;
-  const svg = d3.select('#graph-svg');
-  svg.selectAll('*').remove();
-
-  const spread = parseInt(document.getElementById('spread').value);
-  const charge = spread === 1 ? -120 : spread === 2 ? -200 : -320;
-
-  const g = svg.append('g');
-  svg.call(d3.zoom().scaleExtent([0.3,4]).on('zoom', e => g.attr('transform', e.transform)));
-
-  const defs = svg.append('defs');
-  const filter = defs.append('filter').attr('id','glow');
+function renderGraph(data){
+  const container=document.getElementById('graph-container'),W=container.offsetWidth,H=container.offsetHeight;
+  const svg=d3.select('#graph-svg');svg.selectAll('*').remove();
+  const spread=parseInt(document.getElementById('spread').value),charge=spread===1?-120:spread===2?-200:-320;
+  const g=svg.append('g');
+  svg.call(d3.zoom().scaleExtent([0.2,5]).on('zoom',e=>g.attr('transform',e.transform)));
+  const defs=svg.append('defs'),filter=defs.append('filter').attr('id','glow');
   filter.append('feGaussianBlur').attr('stdDeviation','4').attr('result','coloredBlur');
-  const merge = filter.append('feMerge');
-  merge.append('feMergeNode').attr('in','coloredBlur');
-  merge.append('feMergeNode').attr('in','SourceGraphic');
-
-  if (simulation) simulation.stop();
-  simulation = d3.forceSimulation(data.nodes)
-    .force('link', d3.forceLink(data.links).id(d=>d.id).distance(d => d.cross ? 200 : 80).strength(d=>d.strength))
-    .force('charge', d3.forceManyBody().strength(charge))
-    .force('center', d3.forceCenter(W/2, H/2))
-    .force('collision', d3.forceCollide(d => d.size + 4));
-
-  const link = g.append('g').selectAll('line').data(data.links).join('line')
-    .attr('stroke', d => d.cross ? 'rgba(124,58,237,0.4)' : 'rgba(255,255,255,0.08)')
-    .attr('stroke-width', d => d.strength * (d.cross ? 2 : 1.5))
-    .attr('stroke-dasharray', d => d.cross ? '4,4' : null);
-
-  const node = g.append('g').selectAll('circle').data(data.nodes).join('circle')
-    .attr('r', d => d.size)
-    .attr('fill', d => d.type === 'hub' ? 'none' : d.color + '99')
-    .attr('stroke', d => d.color)
-    .attr('stroke-width', d => d.type === 'hub' ? 2.5 : 1)
-    .attr('filter', d => d.type === 'hub' ? 'url(#glow)' : null)
-    .style('cursor','pointer')
-    .call(d3.drag()
-      .on('start', (e,d) => { if(!e.active) simulation.alphaTarget(0.3).restart(); d.fx=d.x; d.fy=d.y; })
-      .on('drag', (e,d) => { d.fx=e.x; d.fy=e.y; })
-      .on('end', (e,d) => { if(!e.active) simulation.alphaTarget(0); d.fx=null; d.fy=null; })
-    )
-    .on('mouseover', showTooltip)
-    .on('mousemove', moveTooltip)
-    .on('mouseout', hideTooltip)
-    .on('click', (e, d) => { if (d.type === 'hub') filterFeed(d.keyword); });
-
+  const merge=filter.append('feMerge');merge.append('feMergeNode').attr('in','coloredBlur');merge.append('feMergeNode').attr('in','SourceGraphic');
+  if(simulation)simulation.stop();
+  simulation=d3.forceSimulation(data.nodes)
+    .force('link',d3.forceLink(data.links).id(d=>d.id).distance(d=>d.cross?220:80).strength(d=>d.strength))
+    .force('charge',d3.forceManyBody().strength(charge))
+    .force('center',d3.forceCenter(W/2,H/2))
+    .force('collision',d3.forceCollide(d=>d.size+4));
+  const link=g.append('g').selectAll('line').data(data.links).join('line')
+    .attr('stroke',d=>d.cross?'rgba(124,58,237,0.35)':'rgba(255,255,255,0.07)')
+    .attr('stroke-width',d=>d.strength*(d.cross?2:1.5))
+    .attr('stroke-dasharray',d=>d.cross?'4,4':null);
+  const node=g.append('g').selectAll('circle').data(data.nodes).join('circle')
+    .attr('r',d=>d.size).attr('fill',d=>d.type==='hub'?'none':d.color+'88')
+    .attr('stroke',d=>d.color).attr('stroke-width',d=>d.type==='hub'?2.5:1)
+    .attr('filter',d=>d.type==='hub'?'url(#glow)':null).style('cursor','pointer')
+    .call(d3.drag().on('start',(e,d)=>{if(!e.active)simulation.alphaTarget(0.3).restart();d.fx=d.x;d.fy=d.y;}).on('drag',(e,d)=>{d.fx=e.x;d.fy=e.y;}).on('end',(e,d)=>{if(!e.active)simulation.alphaTarget(0);d.fx=null;d.fy=null;}))
+    .on('mouseover',showTooltip).on('mousemove',moveTooltip).on('mouseout',hideTooltip)
+    .on('click',(e,d)=>{if(d.type==='hub')filterFeed(d.keyword);if(d.type==='article'&&d.url&&d.url!=='#')window.open(d.url,'_blank');});
   g.append('g').selectAll('text').data(data.nodes.filter(n=>n.type==='hub')).join('text')
-    .attr('text-anchor','middle').attr('dy','-1.5em')
-    .attr('fill','#e2e8f0').attr('font-size','12px')
-    .attr('font-family','Space Mono, monospace').attr('font-weight','700')
-    .attr('pointer-events','none')
-    .text(d => d.id);
-
-  simulation.on('tick', () => {
-    link.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y).attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
-    node.attr('cx',d=>d.x).attr('cy',d=>d.y);
-    g.selectAll('text').attr('x',d=>d.x).attr('y',d=>d.y);
-  });
+    .attr('text-anchor','middle').attr('dy','-1.6em').attr('fill','#e2e8f0').attr('font-size','12px')
+    .attr('font-family','Space Mono, monospace').attr('font-weight','700').attr('pointer-events','none').text(d=>d.id);
+  simulation.on('tick',()=>{link.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y).attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);node.attr('cx',d=>d.x).attr('cy',d=>d.y);g.selectAll('text').attr('x',d=>d.x).attr('y',d=>d.y);});
 }
 
-const tooltip = document.getElementById('tooltip');
-function showTooltip(event, d) {
-  const sentColor = d.sentiment === 'positive' ? '#10b981' : d.sentiment === 'negative' ? '#ef4444' : '#f59e0b';
-  tooltip.innerHTML = d.type === 'hub'
-    ? `<div class="tt-title">◈ ${d.id}</div><div class="tt-row"><span class="tt-key">Type</span><span>Keyword Hub</span></div>`
-    : `<div class="tt-title">${d.user}</div><div style="font-size:11px;color:#94a3b8;margin-bottom:6px;line-height:1.5">${d.text.substring(0,100)}...</div>
-       <div class="tt-row"><span class="tt-key">Sentiment</span><span style="color:${sentColor}">${d.sentiment}</span></div>
-       <div class="tt-row"><span class="tt-key">Topic</span><span>${d.keyword}</span></div>`;
-  tooltip.style.opacity = '1';
+const tooltip=document.getElementById('tooltip');
+function showTooltip(event,d){
+  const sc=d.sentiment==='positive'?'#10b981':d.sentiment==='negative'?'#ef4444':'#f59e0b';
+  tooltip.innerHTML=d.type==='hub'
+    ?`<div class="tt-title">◈ ${d.id}</div><div class="tt-row"><span class="tt-key">Click</span><span>Filter articles</span></div>`
+    :`<div class="tt-title">${d.source}</div><div style="font-size:11px;color:#cbd5e1;margin-bottom:6px;line-height:1.5">${(d.title||'').substring(0,100)}...</div><div class="tt-row"><span class="tt-key">Sentiment</span><span style="color:${sc}">${d.sentiment}</span></div><div class="tt-row"><span class="tt-key">Topic</span><span>${d.keyword}</span></div>${d.url&&d.url!=='#'?'<div style="margin-top:6px;font-size:10px;color:var(--accent2)">Click to open ↗</div>':''}`;
+  tooltip.style.opacity='1';
 }
-function moveTooltip(event) {
-  const rect = document.getElementById('graph-container').getBoundingClientRect();
-  let x = event.clientX - rect.left + 14, y = event.clientY - rect.top - 10;
-  if (x + 240 > rect.width) x -= 240;
-  tooltip.style.left = x + 'px'; tooltip.style.top = y + 'px';
-}
-function hideTooltip() { tooltip.style.opacity = '0'; }
+function moveTooltip(event){const rect=document.getElementById('graph-container').getBoundingClientRect();let x=event.clientX-rect.left+14,y=event.clientY-rect.top-10;if(x+260>rect.width)x-=260;tooltip.style.left=x+'px';tooltip.style.top=y+'px';}
+function hideTooltip(){tooltip.style.opacity='0';}
 
-function renderFeed(tweets) {
-  document.getElementById('feed-content').innerHTML = tweets.slice(0,60).map(t => {
-    const badgeClass = t.sentiment === 'positive' ? 'badge-pos' : t.sentiment === 'negative' ? 'badge-neg' : 'badge-neu';
-    return `<div class="tweet-card">
-      <div class="tweet-user">${t.user}</div>
-      <div class="tweet-text">${t.text}</div>
-      <div class="tweet-meta">
-        <span class="sent-badge ${badgeClass}">${t.sentiment.toUpperCase()}</span>
-        <span>❤ ${t.likes}</span><span>🔁 ${t.retweets}</span>
-        <span style="color:var(--accent2)">#${t.keyword}</span>
-      </div></div>`;
+function renderFeed(articles){
+  document.getElementById('feed-content').innerHTML=articles.slice(0,60).map(a=>{
+    const bc=a.sentiment==='positive'?'badge-pos':a.sentiment==='negative'?'badge-neg':'badge-neu';
+    const date=a.publishedAt?new Date(a.publishedAt).toLocaleDateString('en-US',{month:'short',day:'numeric'}):'';
+    return`<div class="article-card"><div class="article-source">${a.source}</div><div class="article-title">${a.title}</div>${a.description?`<div class="article-desc">${a.description.substring(0,100)}...</div>`:''}<div class="article-meta"><span class="sent-badge ${bc}">${a.sentiment.toUpperCase()}</span>${date?`<span>${date}</span>`:''}<span style="color:var(--accent2)">#${a.keyword}</span>${a.url&&a.url!=='#'?`<a href="${a.url}" target="_blank" class="article-link">Read ↗</a>`:''}</div></div>`;
   }).join('');
 }
 
-function filterFeed(keyword) {
-  if (!analysisData) return;
-  renderFeed(analysisData.tweets.filter(t => t.keyword === keyword));
-  document.getElementById('feed-header').textContent = `FEED — #${keyword.toUpperCase()}`;
-  if (!feedVisible) toggleFeed();
-}
+function filterFeed(kw){if(!analysisData)return;renderFeed(analysisData.articles.filter(a=>a.keyword===kw));document.getElementById('feed-header').textContent=`📰 ARTICLES — #${kw.toUpperCase()}`;if(!feedVisible)toggleFeed();}
+function toggleFeed(){feedVisible=!feedVisible;document.getElementById('feed-panel').classList.toggle('visible',feedVisible);document.getElementById('btn-feed').classList.toggle('active',feedVisible);document.getElementById('btn-feed').textContent=feedVisible?'Articles ◂':'Articles ▸';}
 
-function toggleFeed() {
-  feedVisible = !feedVisible;
-  document.getElementById('feed-panel').classList.toggle('visible', feedVisible);
-  document.getElementById('btn-feed').classList.toggle('active', feedVisible);
-  document.getElementById('btn-feed').textContent = feedVisible ? 'Feed ◂' : 'Feed ▸';
+function updateStats(data){
+  const{sentimentCounts:sc,total}=data,posP=Math.round(sc.positive/total*100),negP=Math.round(sc.negative/total*100);
+  document.getElementById('s-total').textContent=total;document.getElementById('s-clusters').textContent=keywords.length;
+  document.getElementById('s-pos').textContent=posP+'%';document.getElementById('s-neg').textContent=negP+'%';
+  document.getElementById('bar-pos').style.width=posP+'%';document.getElementById('bar-neg').style.width=negP+'%';document.getElementById('bar-neu').style.width=(100-posP-negP)+'%';
 }
+function setView(v){document.querySelectorAll('.view-btn').forEach(b=>b.classList.remove('active'));document.getElementById('btn-'+v).classList.add('active');if(simulation){simulation.force('charge',d3.forceManyBody().strength(v==='force'?-500:-200));simulation.alpha(0.5).restart();}}
 
-function updateStats(data) {
-  const {sentimentCounts, total} = data;
-  const posP = Math.round(sentimentCounts.positive/total*100);
-  const negP = Math.round(sentimentCounts.negative/total*100);
-  document.getElementById('s-total').textContent = total;
-  document.getElementById('s-clusters').textContent = keywords.length;
-  document.getElementById('s-pos').textContent = posP + '%';
-  document.getElementById('s-neg').textContent = negP + '%';
-  document.getElementById('bar-pos').style.width = posP + '%';
-  document.getElementById('bar-neg').style.width = negP + '%';
-  document.getElementById('bar-neu').style.width = (100-posP-negP) + '%';
-}
-
-function setView(v) {
-  document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('btn-'+v).classList.add('active');
-  if (simulation) {
-    simulation.force('charge', d3.forceManyBody().strength(v==='force' ? -500 : -200));
-    simulation.alpha(0.5).restart();
-  }
-}
-
-// Init
 setMode('sim');
 </script>
 </body>
